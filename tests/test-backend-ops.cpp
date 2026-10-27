@@ -12320,6 +12320,17 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
     test_cases.emplace_back(new test_flash_attn_ext_large_logits(256, 256,  4, {4, 1}, 1024, 75, true, false, 0, 10.0f, GGML_PREC_F32, GGML_TYPE_F16, GGML_TYPE_F16));
     test_cases.emplace_back(new test_flash_attn_ext_large_logits(256, 256,  4, {4, 1}, 1024, 75, true, false, 0, 0, GGML_PREC_F32, GGML_TYPE_BF16, GGML_TYPE_BF16));
 
+    // non-power-of-two GQA f16 cases
+    for (int hs : {64, 128, 256}) {
+        for (int nr2 : {3, 5, 6, 7}) {
+            for (int nb : {3, 4, 5, 8, 16, 64}) {
+                test_cases.emplace_back(new test_flash_attn_ext(
+                    hs, hs, 4, {nr2, 1}, 512, nb, true, false, 0, 0, GGML_PREC_F32,
+                    GGML_TYPE_F16, GGML_TYPE_F16));
+            }
+        }
+    }
+
     test_cases.emplace_back(new test_cross_entropy_loss     (GGML_TYPE_F32, {   10, 5, 4, 3}));
     test_cases.emplace_back(new test_cross_entropy_loss     (GGML_TYPE_F32, {30000, 1, 1, 1}));
     test_cases.emplace_back(new test_cross_entropy_loss_back(GGML_TYPE_F32, {   10, 5, 4, 3}));
@@ -12902,6 +12913,22 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_perf() {
             for (int nr : { 1, 4, 8, }) {
                 for (int nb : { 1, 4096, }) {
                     test_cases.emplace_back(new test_flash_attn_ext(hs, hsv, 8, {nr, 1}, kv, nb, true, false, 0, 0, GGML_PREC_F32, GGML_TYPE_F16, GGML_TYPE_F16, {0, 1, 2, 3}, true, v_view));
+                }
+            }
+        }
+    }
+
+    // Padded-GQA grid. perf mode uses this function, not make_test_cases_eval.
+    // kv=32768 stays off the correctness list. Gated so a plain perf run is unchanged.
+    if (std::getenv("LLAMA_FA_PERF_EXTRA") != nullptr) {
+        for (int d : {64, 128, 256}) {
+            for (int gqa : {3, 5, 6, 7}) {
+                const int nh = d == 256 ? 4 : 8;
+                for (int nb : {1, 2, 3, 4, 5, 8, 16, 64}) {
+                    for (ggml_type t : {GGML_TYPE_F16, GGML_TYPE_Q8_0, GGML_TYPE_Q4_0}) {
+                        test_cases.emplace_back(new test_flash_attn_ext(
+                            d, d, nh, {gqa, 1}, 32768, nb, true, false, 0.0f, 0.0f, GGML_PREC_F32, t, t));
+                    }
                 }
             }
         }

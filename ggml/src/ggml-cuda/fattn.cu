@@ -696,8 +696,15 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
     }
 
     // AMD WMMA is faster than the tile kernel if the wide tiles with high arithmetic intensity can be utilized.
+    int gqa_ratio_wmma = gqa_ratio_eff;
+    if (gqa_opt_applies && gqa_ratio == 3) {
+        gqa_ratio_wmma = 4;
+    } else if (gqa_opt_applies && gqa_ratio > 4 && gqa_ratio_eff < 8) {
+        gqa_ratio_wmma = 8;
+    }
+    const int max_cols_vec_quant = (K->ne[0] <= 128 && K->type == GGML_TYPE_F16 && V->type == GGML_TYPE_F16) ? 8 : 16;
     if ((amd_wmma_available(cc) && gqa_opt_applies && Q->ne[0] <= 256) && Q->ne[0] != 40 && Q->ne[0] != 72 &&
-            Q->ne[1] * gqa_ratio_eff > (Q->ne[0] <= 128 ? 8 : 16)) {
+            Q->ne[1] * gqa_ratio_wmma > max_cols_vec_quant) {
         return BEST_FATTN_KERNEL_MMA_F16;
     }
 
