@@ -720,7 +720,17 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
                 }
             }
         } else {
-            if (Q->ne[1] <= 2 && !use_native_tile_kv) {
+            // On RDNA4, route matched q4_0/q8_0 at nb <= 2 to the ncols2-batched vec kernel when it
+            // beats the dp4a tile (GQA <= 2, D == 256, D == 128 nb == 1 GQA >= 6, and D == 128 nb == 2 GQA == 6),
+            // while keeping D == 128 GQA == 4, D == 128 GQA == 8 nb == 2, and odd GQA ratios on the dp4a tile.
+            const int gqa = Q->ne[2] / K->ne[2];
+            const bool vec_pair = GGML_CUDA_CC_IS_RDNA4(cc) && gqa_opt_applies && gqa % 2 == 0 &&
+                (Q->ne[0] == 128 || Q->ne[0] == 256) &&
+                ((K->type == GGML_TYPE_Q8_0 && V->type == GGML_TYPE_Q8_0) ||
+                 (K->type == GGML_TYPE_Q4_0 && V->type == GGML_TYPE_Q4_0));
+            const bool prefer_vec = vec_pair &&
+                (gqa <= 2 || Q->ne[0] == 256 || (Q->ne[1] == 1 && gqa >= 6) || (Q->ne[1] == 2 && gqa == 6));
+            if (Q->ne[1] <= 2 && (!use_native_tile_kv || prefer_vec)) {
                 return BEST_FATTN_KERNEL_VEC;
             }
         }
