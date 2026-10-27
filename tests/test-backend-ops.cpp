@@ -12357,9 +12357,9 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
         // non-power-of-two GQA f16 cases
         for (int hs : { 64, 128, 256 }) {
             for (int nr2 : { 3, 5, 6, 7 }) {
-                for (int nb : { 16, 64 }) {
+                for (int nb : { 3, 4, 5, 8, 16, 64 }) {
                     test_cases.emplace_back(new test_flash_attn_ext(
-                        hs, hs, 4, { nr2, 1 }, 256, nb, true, false, 0.0f, 0.0f, GGML_PREC_F32,
+                        hs, hs, 4, { nr2, 1 }, 512, nb, true, false, 0.0f, 0.0f, GGML_PREC_F32,
                         GGML_TYPE_F16, GGML_TYPE_F16));
                 }
             }
