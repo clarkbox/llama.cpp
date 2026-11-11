@@ -361,19 +361,19 @@ static constexpr __host__ __device__ uint32_t ggml_cuda_fattn_tile_get_config_qu
 }
 
 static __host__ uint32_t ggml_cuda_fattn_tile_get_config_quant(const int DKQ, const int DV, const int ncols, const int cc) {
-    if (cc == GGML_CUDA_CC_OFFSET_AMD + 0x1201) { // gfx1201
+    if (cc == GGML_CUDA_CC_OFFSET_AMD + 0x1201 || cc == GGML_CUDA_CC_OFFSET_AMD + 0x1151) { // gfx1201, gfx1151 trial with the gfx1201 rows
         return ggml_cuda_fattn_tile_get_config_quant_gfx1201(DKQ, DV, ncols);
     }
     return 0;
 }
 
 static constexpr __host__ __device__ uint32_t ggml_cuda_fattn_tile_get_config_quant(const int DKQ, const int DV, const int ncols) {
-#if defined(GGML_USE_HIP) && defined(__gfx1201__)
+#if defined(GGML_USE_HIP) && (defined(__gfx1201__) || defined(__gfx1151__))
     return ggml_cuda_fattn_tile_get_config_quant_gfx1201(DKQ, DV, ncols);
 #else
     GGML_UNUSED_VARS(DKQ, DV, ncols);
     return 0;
-#endif // defined(GGML_USE_HIP) && defined(__gfx1201__)
+#endif // defined(GGML_USE_HIP) && (defined(__gfx1201__) || defined(__gfx1151__))
 }
 
 // Block shapes (ncols1 Q columns x ncols2 Q heads) that read K/V natively, used by the host gate and by the kernel.
